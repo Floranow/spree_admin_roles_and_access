@@ -11,18 +11,21 @@ module Spree
       alias_action :index, to: :read
       alias_action :delete, to: :destroy
 
-      user ||= Spree.user_class.new
+      @user = user || Spree.user_class.new
+    end
 
-      user_roles(user).map(&:permissions).flatten.uniq.map { |permission| permission.ability(self, user) }
+    def abilities(external_roles = [])
+      @roles = external_roles
+      user_roles&.map(&:permissions).flatten.uniq.map { |permission| permission.ability(self, @user) }
 
       Ability.abilities.each do |clazz|
-        ability = clazz.send(:new, user)
+        ability = clazz.send(:new, @user)
         @rules = rules + ability.send(:rules)
       end
     end
 
-    def user_roles(user)
-      (roles = user.roles.includes(:permissions)).empty? ? Spree::Role.default_role.includes(:permissions) : roles
+    def user_roles
+      (roles = Spree::Role.where(name: @roles).includes(:permissions)).empty? ? Spree::Role.default_role.includes(:permissions) : roles
     end
   end
 end
