@@ -1,7 +1,7 @@
 module Spree
   module AbilityDecorator
 
-    def initialize(user)
+    def initialize(user, external_roles = [])
       self.clear_aliased_actions
 
       alias_action :edit, to: :update
@@ -12,11 +12,10 @@ module Spree
       alias_action :delete, to: :destroy
 
       @user = user || Spree.user_class.new
-    end
 
-    def abilities(external_roles = [])
-      @roles = external_roles
-      user_roles&.map(&:permissions).flatten.uniq.map { |permission| permission.ability(self, @user) }
+      @external_roles = external_roles
+
+      get_roles&.map(&:permissions).flatten.uniq.map { |permission| permission.ability(self, @user) }
 
       Ability.abilities.each do |clazz|
         ability = clazz.send(:new, @user)
@@ -24,8 +23,16 @@ module Spree
       end
     end
 
+    def get_roles
+      @external_roles.nil? || @external_roles.empty? ? user_roles : token_roles
+    end
+
     def user_roles
-      (roles = Spree::Role.where(name: @roles).includes(:permissions)).empty? ? Spree::Role.default_role.includes(:permissions) : roles
+      (roles = @user&.roles&.includes(:permissions)).empty? ? Spree::Role.default_role.includes(:permissions) : roles
+    end
+
+    def token_roles
+      (roles = Spree::Role.where(name: @external_roles).includes(:permissions)).empty? ? Spree::Role.default_role.includes(:permissions) : roles
     end
   end
 end
