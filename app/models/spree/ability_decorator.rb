@@ -15,20 +15,12 @@ module Spree
 
       @external_roles = external_roles
 
-      get_roles&.map(&:permissions).flatten.uniq.map { |permission| permission.ability(self, @user) }
+      token_roles&.map(&:permissions).flatten.uniq.map { |permission| permission.ability(self, @user) }
 
       Ability.abilities.each do |clazz|
         ability = clazz.send(:new, @user)
         @rules = rules + ability.send(:rules)
       end
-    end
-
-    def get_roles
-      @external_roles.nil? || @external_roles.empty? ? user_roles : token_roles
-    end
-
-    def user_roles
-      (roles = @user&.roles&.includes(:permissions)).empty? ? Spree::Role.default_role.includes(:permissions) : roles
     end
 
     def token_roles
